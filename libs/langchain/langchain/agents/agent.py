@@ -977,37 +977,45 @@ class AgentExecutor(Chain):
             actions = output
         result = []
         for agent_action in actions:
-            if run_manager:
-                run_manager.on_agent_action(agent_action, color="green")
-            # Otherwise we lookup the tool
-            if agent_action.tool in name_to_tool_map:
-                tool = name_to_tool_map[agent_action.tool]
-                return_direct = tool.return_direct
-                color = color_mapping[agent_action.tool]
-                tool_run_kwargs = self.agent.tool_run_logging_kwargs()
-                if return_direct:
-                    tool_run_kwargs["llm_prefix"] = ""
-                # We then call the tool on the tool input to get an observation
-                observation = tool.run(
-                    agent_action.tool_input,
-                    verbose=self.verbose,
-                    color=color,
-                    callbacks=run_manager.get_child() if run_manager else None,
-                    **tool_run_kwargs,
-                )
-            else:
-                tool_run_kwargs = self.agent.tool_run_logging_kwargs()
-                observation = InvalidTool().run(
-                    {
-                        "requested_tool_name": agent_action.tool,
-                        "available_tool_names": list(name_to_tool_map.keys()),
-                    },
-                    verbose=self.verbose,
-                    color=None,
-                    callbacks=run_manager.get_child() if run_manager else None,
-                    **tool_run_kwargs,
-                )
-            result.append((agent_action, observation))
+            try:
+                if run_manager:
+                    # XXX HERE
+                    run_manager.on_agent_action(agent_action, color="green")
+                # Otherwise we lookup the tool
+                if agent_action.tool in name_to_tool_map:
+                    tool = name_to_tool_map[agent_action.tool]
+                    return_direct = tool.return_direct
+                    color = color_mapping[agent_action.tool]
+                    tool_run_kwargs = self.agent.tool_run_logging_kwargs()
+                    if return_direct:
+                        tool_run_kwargs["llm_prefix"] = ""
+                    # We then call the tool on the tool input to get an observation
+                    observation = tool.run(
+                        agent_action.tool_input,
+                        verbose=self.verbose,
+                        color=color,
+                        callbacks=run_manager.get_child() if run_manager else None,
+                        **tool_run_kwargs,
+                    )
+                else:
+                    tool_run_kwargs = self.agent.tool_run_logging_kwargs()
+                    observation = InvalidTool().run(
+                        {
+                            "requested_tool_name": agent_action.tool,
+                            "available_tool_names": list(name_to_tool_map.keys()),
+                        },
+                        verbose=self.verbose,
+                        color=None,
+                        callbacks=run_manager.get_child() if run_manager else None,
+                        **tool_run_kwargs,
+                    )
+                result.append((agent_action, observation))
+            except Exception as e:
+                if "sage" in e.__class__.__name__:
+                    result.append((
+                        agent_action,
+                        "ERROR: You are not approved to use the tool with those arguments. Please try again"
+                    ))
         return result
 
     async def _atake_next_step(
@@ -1078,39 +1086,46 @@ class AgentExecutor(Chain):
         async def _aperform_agent_action(
             agent_action: AgentAction,
         ) -> Tuple[AgentAction, str]:
-            if run_manager:
-                await run_manager.on_agent_action(
-                    agent_action, verbose=self.verbose, color="green"
-                )
-            # Otherwise we lookup the tool
-            if agent_action.tool in name_to_tool_map:
-                tool = name_to_tool_map[agent_action.tool]
-                return_direct = tool.return_direct
-                color = color_mapping[agent_action.tool]
-                tool_run_kwargs = self.agent.tool_run_logging_kwargs()
-                if return_direct:
-                    tool_run_kwargs["llm_prefix"] = ""
-                # We then call the tool on the tool input to get an observation
-                observation = await tool.arun(
-                    agent_action.tool_input,
-                    verbose=self.verbose,
-                    color=color,
-                    callbacks=run_manager.get_child() if run_manager else None,
-                    **tool_run_kwargs,
-                )
-            else:
-                tool_run_kwargs = self.agent.tool_run_logging_kwargs()
-                observation = await InvalidTool().arun(
-                    {
-                        "requested_tool_name": agent_action.tool,
-                        "available_tool_names": list(name_to_tool_map.keys()),
-                    },
-                    verbose=self.verbose,
-                    color=None,
-                    callbacks=run_manager.get_child() if run_manager else None,
-                    **tool_run_kwargs,
-                )
-            return agent_action, observation
+            try:
+                if run_manager:
+                    await run_manager.on_agent_action(
+                        agent_action, verbose=self.verbose, color="green"
+                    )
+                # Otherwise we lookup the tool
+                if agent_action.tool in name_to_tool_map:
+                    tool = name_to_tool_map[agent_action.tool]
+                    return_direct = tool.return_direct
+                    color = color_mapping[agent_action.tool]
+                    tool_run_kwargs = self.agent.tool_run_logging_kwargs()
+                    if return_direct:
+                        tool_run_kwargs["llm_prefix"] = ""
+                    # We then call the tool on the tool input to get an observation
+                    observation = await tool.arun(
+                        agent_action.tool_input,
+                        verbose=self.verbose,
+                        color=color,
+                        callbacks=run_manager.get_child() if run_manager else None,
+                        **tool_run_kwargs,
+                    )
+                else:
+                    tool_run_kwargs = self.agent.tool_run_logging_kwargs()
+                    observation = await InvalidTool().arun(
+                        {
+                            "requested_tool_name": agent_action.tool,
+                            "available_tool_names": list(name_to_tool_map.keys()),
+                        },
+                        verbose=self.verbose,
+                        color=None,
+                        callbacks=run_manager.get_child() if run_manager else None,
+                        **tool_run_kwargs,
+                    )
+                return agent_action, observation
+            except Exception as e:
+                if "sage" in e.__class__.__name__:
+                    result.append((
+                        agent_action,
+                        "ERROR: You are not approved to use the tool with those arguments. Please try again"
+                    ))
 
         # Use asyncio.gather to run multiple tool.arun() calls concurrently
         result = await asyncio.gather(

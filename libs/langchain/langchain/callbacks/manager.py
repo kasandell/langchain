@@ -383,6 +383,7 @@ def _handle_event(
     coros: List[Coroutine[Any, Any, Any]] = []
 
     try:
+        raisable_errors = []
         message_strings: Optional[List[str]] = None
         for handler in handlers:
             try:
@@ -416,7 +417,9 @@ def _handle_event(
                     f"Error in {handler.__class__.__name__}.{event_name} callback: {e}"
                 )
                 if handler.raise_error:
-                    raise e
+                    raisable_errors.append(e)
+        if len(raisable_errors) != 0:
+            raise raisable_errors[0]
     finally:
         if coros:
             try:
@@ -1347,6 +1350,7 @@ class CallbackManager(BaseCallbackManager):
             run_id = uuid.uuid4()
 
         _handle_event(
+
             self.handlers,
             "on_tool_start",
             "ignore_agent",

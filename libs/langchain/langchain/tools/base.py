@@ -360,6 +360,9 @@ class ChildTool(BaseTool):
             )
             return observation
         except (Exception, KeyboardInterrupt) as e:
+            # TODO: get sage as a package so we can catch the exception outright
+            if "sage" in e.__class__.__name__:
+                return "ERROR: You are not approved to use the tool with those arguments. Please try again"
             run_manager.on_tool_error(e)
             raise e
         else:
